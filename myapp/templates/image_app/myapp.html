@@ -1,0 +1,612 @@
+{% load static %} {% load my_custom_filters %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap"
+      rel="stylesheet"/>
+    <title>Edge Detection & Segmentation Application</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/styles.css' %}" />
+  </head>
+  <body>
+     <!-- --------------------Header--------------------------------->
+     <header>
+        <h1>Image detection & Segmentation</h1>
+      </header>
+       <!-- --------------------Image pool--------------------------------->
+  
+    <div class="container">
+        <h2 >Select Image from Image Pool</h2>
+        <ul class="gallery">
+          {% for index, image in images %}
+            {% if image.image.url %}
+              <li class="img-pool">
+                <a href="?select_image={{ index }}">
+                  <figure>
+                    <img src="{{ image.image.url }}" alt="{{ image.title | default:'Image' }}" />
+                  </figure>
+                </a>
+              </li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+        
+    </div>
+ <!-- --------------------Image upload--------------------------------->
+      <div class="selected-image">
+        <div class="image-selection" data-aos="fade-down-right" data-aos-duration="1000">
+          <h3>Upload an Image</h3>
+          <form class="image-upload-form" method="post" enctype="multipart/form-data" style="color: antiquewhite">
+            {% csrf_token %}
+            <p for="id_title">Title:</p>
+            <input type="text" name="title" maxlength="100" required="" id="id_title">
+            <u>
+              <label for="id_image" style="margin-top: 2vw;">Choose your Image:</label>
+            </u>
+            <input type="file" name="image" accept="image/*" required="" id="id_image" onchange="displayFileName(this)">
+            <span id="selectedFileName"></span>
+            <button class="upload-btn" type="submit">Upload</button>
+          </form>
+        </div>
+        
+        <div class="image-selection" data-aos="fade-down-left" data-aos-duration="1000">
+          <h3>Selected Image</h3>
+          {% if selected_image|hasattr:"image" %}
+          <img src="{{ selected_image.image.url }}" alt="Selected Image" />
+          {% else %}
+          <img src="/media/images/{{ selected_image }}" alt="Selected Image" />
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="manipulation">
+        <h2>Results</h2>
+        <div class="image-grid" data-aos="fade-up" data-aos-duration="3000">
+          <div id="grayscale" class="image-container">
+            <p>Grayscale Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ gray_image }}"
+              alt="grayscale image"
+              class="processed-image"
+            />
+            <div class="overlay">
+                <p>
+                  A grayscale image is a digital representation where each pixel is assigned a single intensity value, typically ranging from 0 (black) to 255 (white), resulting in a monochromatic depiction without color information.
+                </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="gaussian_image" class="image-container">
+            <p>Gaussian Blur Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ gaussian_image }}"
+              alt="gaussian_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                A Gaussian blur image is produced by applying a convolution with a Gaussian filter, smoothing and reducing image noise by assigning each pixel a weighted average of its neighboring pixels, resulting in a visually softened and blended appearance.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="sharp_image" class="image-container">
+            <p>Sharpen Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ sharp_image }}"
+              alt="sharp image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                A sharpened image is achieved through the enhancement of contrast in edges by accentuating differences in pixel intensity, typically implemented using convolution with a sharpening filter, resulting in improved visual clarity and detail.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 0.5vw"></div>
+        <div class="image-grid" data-aos="fade-up" data-aos-duration="3000">
+          <div id="laplacian_edge_detection" class="image-container">
+            <p>Laplacian Edge Detection</p>
+            <img
+              src="data:image/jpeg;base64,{{ laplacian_edge_detection }}"
+              alt="laplacian image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Laplacian edge detection is a technique that highlights abrupt intensity changes in an image by applying a second derivative operator, emphasizing regions with significant variations in pixel intensity.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="sobel_image" class="image-container">
+            <p>Sobel Edge Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ sobel_image }}"
+              alt="sobel_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Sobel edge detection involves convolving an image with Sobel operators to emphasize vertical and horizontal intensity gradients, revealing edges and contours by accentuating changes in pixel values.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="scharr_image" class="image-container">
+            <p>Scharr Edge Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ scharr_image }}"
+              alt="scharr_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Similar to Sobel, Scharr edge detection employs a convolution kernel with enhanced sensitivity to diagonal intensity changes, offering improved edge detection capabilities with a more isotropic response.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 0.5vw"></div>
+        <div class="image-grid" data-aos="fade-up" data-aos-duration="3000">
+          <div id="canny_image" class="image-container">
+            <p>Canny Edge Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ canny_image }}"
+              alt="canny_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Canny edge detection is a multi-stage process involving gradient computation, non-maximum suppression, and edge tracking by hysteresis, resulting in a high-quality edge map with reduced noise and precise localization.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="canny_image_1" class="image-container">
+            <p>Custom Canny Edge Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ canny_image_1 }}"
+              alt="canny_image_1 image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>This is the custom implementation of Canny Algorithm.</p>
+            </div>
+          </div>
+          <div></div>
+          <div id="roberts_image" class="image-container">
+            <p>Roberts Edge Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ roberts_image }}"
+              alt="roberts_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Roberts edge detection utilizes simple convolution masks to highlight diagonal intensity changes, providing a basic method for detecting edges in images.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 0.5vw"></div>
+        <div class="image-grid" data-aos="fade-up" data-aos-duration="3000">
+          <div id="prewitt_image" class="image-container">
+            <p>Prewitt Edge Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ prewitt_image }}"
+              alt="prewitt_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Prewitt edge detection uses convolution masks to emphasize vertical and horizontal intensity gradients, enabling the identification of edges and contours in images.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="log_image" class="image-container">
+            <p>Log Edge Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ log_image }}"
+              alt="log_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Log edge detection involves convolving an image with a Laplacian of Gaussian (LoG) filter to highlight regions of rapid intensity changes, enhancing edge visibility while reducing noise.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="thresh_image" class="image-container">
+            <p>Threshold Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ thresh_image }}"
+              alt="thresh_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Thresholding involves segmenting an image by setting a specific intensity threshold, categorizing pixels as either foreground or background based on their intensity values.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 0.5vw"></div>
+        <div class="image-grid" data-aos="fade-up" data-aos-duration="3000">
+          <div id="adaptive_thresh_image" class="image-container">
+            <p>Adaptive Threshold Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ adaptive_thresh_image }}"
+              alt="adaptive_thresh_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Adaptive thresholding dynamically adjusts the threshold for each image region, enhancing the robustness of segmentation by adapting to local variations in intensity
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="cluster_graph" class="image-container row-2">
+            <div>
+              <p>K Means Clusters - Inertia Graph</p>
+              <img
+                src="data:image/png;base64,{{ cluster_graph }}"
+                alt="cluster_graph image"
+                class="processed-image"
+                style="max-height: 190px;"
+              />
+              <div class="overlay" style="max-height: 190px !important;">
+                <p>
+                  The K Means Clusters Inertia Graph visually represents the sum of squared distances between data points and their assigned cluster centers for different values of K, aiding in the determination of an optimal number of clusters.
+                </p>
+              </div>
+            </div>
+            <div class="upload-image" style="background: none !important; margin-top: -5px;">
+              <form method="post" enctype="multipart/form-data">
+                {% csrf_token %} {{ cluster_form.cluster_input }}
+                <label for="cluster_input">Input the number of clusters:</label>
+                <input type="text" name="cluster_input" id="cluster_input" />
+                <button
+                  type="submit"
+                  style="display: block; margin: auto; margin-top: 5px;"
+                  class="upload-btn"
+                >
+                  Submit
+                </button>
+              </form>
+              <p style="font-size: 0.75vw !important;  margin-top: 5px;">
+                <i>Note: By default number of clusters are 3.</i>
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="kmeans_segmentation" class="image-container">
+            <p>KMeans Segmentation Image</p>
+            <img
+              src="data:image/jpeg;base64,{{ kmeans_segmentation }}"
+              alt="kmeans_segmentation image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                KMeans image segmentation partitions an image into distinct clusters based on pixel similarity, leveraging the KMeans clustering algorithm to group pixels with similar color or intensity.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 0.5vw"></div>
+        <div class="image-grid" data-aos="fade-up" data-aos-duration="3000">
+          <div id="dbscan_image" class="image-container">
+            <p>DBSCAN Image Segmentation</p>
+            <img
+              src="data:image/jpeg;base64,{{ dbscan_image }}"
+              alt="dbscan_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                DBSCAN image segmentation identifies dense regions of pixels as clusters, allowing for the detection of irregularly shaped patterns while handling varying cluster densities
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="svm_image" class="image-container">
+            <p>SVM Image Segmentation</p>
+            <img
+              src="data:image/jpeg;base64,{{ svm_image }}"
+              alt="svm_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Support Vector Machine (SVM) image segmentation employs machine learning techniques to classify pixels into different classes or regions, facilitating precise segmentation based on learned patterns.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="fcn_segmentation" class="image-container">
+            <p>FCN RESNET101 Segmentation</p>
+            <img
+              src="data:image/jpeg;base64,{{ fcn_segmentation }}"
+              alt="fcn_segmentation image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Fully Convolutional Network (FCN) with RESNET101 architecture enables semantic segmentation by extending convolutional neural networks to output pixel-wise class predictions.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 0.5vw"></div>
+        <div class="image-grid" data-aos="fade-up" data-aos-duration="3000">
+          <div id="hsv_segmentation" class="image-container">
+            <p>HSV Threshold Image Segmentation</p>
+            <img
+              src="data:image/jpeg;base64,{{ hsv_segmentation }}"
+              alt="hsv_segmentation image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                HSV thresholding segments an image based on the Hue, Saturation, and Value (HSV) color space, allowing for selective extraction of specific color ranges.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="svm_image_1" class="image-container">
+            <p>SVM Image Segmentation</p>
+            <img
+              src="data:image/jpeg;base64,{{ svm_image_1 }}"
+              alt="svm_image_1 image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>Additional information about the grayscale image.</p>
+            </div>
+          </div>
+          <div></div>
+          <div id="fcn_segmentation_1" class="image-container">
+            <p>FCN RESNET101 Segmentation</p>
+            <img
+              src="data:image/jpeg;base64,{{ fcn_segmentation_1 }}"
+              alt="fcn_segmentation_1 image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>Additional information about the grayscale image.</p>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 0.5vw"></div>
+        <div class="image-grid" data-aos="fade-up" data-aos-duration="3000">
+          <div id="deeplab_image" class="image-container">
+            <p>DeepLab Image Segmentation</p>
+            <img
+              src="data:image/jpeg;base64,{{ deeplab_image }}"
+              alt="deeplab_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                DeepLab with MobileNetV3 architecture performs image segmentation by employing depth-wise separable convolutions, achieving high accuracy with reduced computational complexity.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="lraspp_image" class="image-container">
+            <p>LRASPP MobileNetV3 Segmentation</p>
+            <img
+              src="data:image/jpeg;base64,{{ lraspp_image }}"
+              alt="lraspp_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                LRASPP (Lite R-ASPP) MobileNetV3 segmentation combines MobileNetV3 with a lightweight spatial pyramid pooling module for efficient and accurate image segmentation.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="maskrcnn_image" class="image-container">
+            <p>MaskRCNN ResNet50 FPN Mask</p>
+            <img
+              src="data:image/jpeg;base64,{{ maskrcnn_image }}"
+              alt="maskrcnn_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Mask R-CNN with ResNet50 and Feature Pyramid Network (FPN) integrates object detection and instance segmentation, providing precise object boundaries and pixel-level masks.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 0.5vw"></div>
+        <div class="image-grid" data-aos="fade-up" data-aos-duration="3000">
+          <div id="haar_cascade_image" class="image-container">
+            <p>Face Detection Haar Cascade</p>
+            <img
+              src="data:image/jpeg;base64,{{ haar_cascade_image }}"
+              alt="haar_cascade_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Haar Cascade-based face detection utilizes a machine learning approach to identify faces by training on positive and negative image samples, enabling real-time face detection.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="mtcnn_image" class="image-container">
+            <p>Face Detection MTCNN</p>
+            <img
+              src="data:image/jpeg;base64,{{ mtcnn_image }}"
+              alt="mtcnn_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Multi-Task Cascaded Convolutional Networks (MTCNN) perform face detection by sequentially predicting bounding boxes and facial landmarks, offering accurate and efficient detection of faces.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="dlib_image" class="image-container">
+            <p>Deep Learning Face Detection DLIB</p>
+            <img
+              src="data:image/jpeg;base64,{{ dlib_image }}"
+              alt="dlib_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                DLIB employs deep learning models for face detection, utilizing pre-trained neural networks to locate and identify faces in images.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 0.5vw"></div>
+        <div class="image-grid" data-aos="fade-up" data-aos-duration="3000">
+          <div id="blaze_face_image" class="image-container">
+            <p>Face Detection BlazeFace MediaPipe</p>
+            <img
+              src="data:image/jpeg;base64,{{ blaze_face_image }}"
+              alt="blaze_face_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                BlazeFace from MediaPipe is a lightweight face detection model optimized for real-time applications, delivering efficient and accurate face detection on various devices.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="face_mesh_image" class="image-container">
+            <p>Face Mesh MediaPipe</p>
+            <img
+              src="data:image/jpeg;base64,{{ face_mesh_image }}"
+              alt="face_mesh_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                MediaPipe's Face Mesh model employs high-dimensional regression to predict facial landmark coordinates, facilitating precise facial feature localization.
+              </p>
+            </div>
+          </div>
+          <div></div>
+          <div id="keypoint_image" class="image-container">
+            <p>Keypoint Detection RCNN ResNet50</p>
+            <img
+              src="data:image/jpeg;base64,{{ keypoint_image }}"
+              alt="keypoint_image image"
+              class="processed-image"
+            />
+            <div class="overlay">
+              <p>
+                Keypoint detection using Region-based Convolutional Neural Network (RCNN) with ResNet50 architecture identifies and localizes keypoints in images, enabling tasks like pose estimation.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% if image_upload_form.errors %}
+    <p style="color: red">{{ image_upload_form.errors }}</p>
+    {% endif %} {% if cluster_form.errors %}
+    <p style="color: red">{{ cluster_form.errors }}</p>
+    {% endif %}
+
+    <!------------Footer----------------->
+    <footer>
+      <div class="col-3-eq">
+        <div class="footer-top"><h3>MUHAMMAD WASIF IJAZ</h3></div>
+        <div class="footer-top"><h3>MAJOR PROJECTS</h3></div>
+        <div class="footer-top"><h3>CONTACT</h3></div>
+      </div>
+      <div class="footer-content">
+        <div class="left">
+          <p>
+            <li style="color: #dedef1;">AI Engineer & Data Analyst (October 2021 - October 2023)<br><i>Codistan Ventures Islamabad</i></li>
+            <br>
+            <li style="color: #dedef1;">Masters in Data Science <br><i>Middlesex University Dubai</i></li>
+            <br>
+            <li style="color: #dedef1;">Bachelors in Computer Engineering (Gold Medalist) <br><i>Bahria University Islamabad</i></li>
+          </p>
+        </div>
+        <div class="center">
+          <ul>
+            <li><a class="links" href="https://github.com/wasifijaz/Airbnb-Listings-Success-Classification">Airbnb Listing Classification</a></li>
+            <br>
+            <li><a class="links" href="https://github.com/wasifijaz/Sports-Prediction-and-Betting-Articles-using-Sportradar-API">Automated Sports Article Generation, Betting and Winning Prediction</a></li>
+            <br>
+            <li><a class="links" href="https://github.com/wasifijaz/VAST-Challenge-2018-MC2">Google VAST Challenge 2018 MC2</a></li>
+            <br>
+            <li><a class="links" href="https://github.com/wasifijaz/Suspect-Tracking-through-Person-Re-Identification">Suspect Tracking through Person Re-Identification</a></li>
+            <br>
+            <li><a class="links" href="https://github.com/wasifijaz/Audio-Features-and-Comparison">Audio Analysis using Deep Learning</a></li>
+            <br>
+            <li><a class="links" href="https://github.com/wasifijaz/Cards-Detection">Cards Classification</a></li>
+          </ul>
+        </div>
+        <div class="right">
+          <p class="col-3">
+            <a class="links" href="mailto:wasif.ijaz16@yahoo.com">wasif.ijaz16@yahoo.com</a>
+            <span></span>
+            <span class="email-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="6" width="18" height="12" rx="2" ry="2"></rect>
+                <path d="M3 6l9 6 9-6"></path>
+              </svg>          
+            </span>   
+          </p>
+          <p class="col-3">
+            <a class="links" href="tel:+971 501936316">+971 50 193 6316</a>
+            <span></span>
+            <span class="email-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                <line x1="12" y1="2" x2="12" y2="22"></line>
+                <circle cx="12" cy="22" r="1"></circle>
+              </svg>                        
+            </span> 
+          </p>
+          <p class="col-3">
+            <a class="links" href="{% static 'files/Muhammad Wasif Ijaz - Data Analyst.pdf' %}">Resume</a>
+            <span></span>
+            <span class="email-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                <line x1="4" y1="14" x2="20" y2="14"></line>
+                <line x1="8" y1="8" x2="16" y2="8"></line>
+              </svg>                
+            </span> 
+          </p>
+          <a class="links" href="https://www.linkedin.com/in/wasifijaz-data-analytics/" target="_blank" title="LinkedIn"
+           ><img src="{% static 'images//linkedin.png' %}" alt="LinkedIn"
+          /></a>
+          <a class="links" href="https://github.com/wasifijaz" target="_blank" title="GitHub"
+            ><img src="{% static 'images/github.png' %}" alt="GitHub"
+          /></a>
+        </div>
+      </div>
+    </footer>
+    <!-- JS Plugin for animation-->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+
+    <script>
+      AOS.init();
+
+      function displayFileName(input) {
+        var fileName = input.files[0].name;
+        document.getElementById('selectedFileName').innerText = fileName;
+    }
+    </script>
+  </html>
