@@ -18,22 +18,22 @@
     <!-- --------------------Image pool--------------------------------->
     <h2 >Select Image from Image Pool</h2>
     <div class="container">
-      <ul class="gallery">
+      <ul class="gallery" style="z-index: 1;">
         {% for index, image in images %}
           {% if image.image.url %}
             <li class="img-pool">
               <a href="?select_image={{ index }}">
                 <figure>
-                  <img src="{{ image.image.url }}" alt="{{ image.title | default:'Image' }}" />
+                  <img src="{{ image.image.url }}" alt="{{ image.title | default:'Image' }}"/>
                 </figure>
               </a>
             </li>
           {% endif %}
         {% endfor %}
       </ul>
-      <div class="shooting-star" id="star1"></div>
-      <div class="shooting-star" id="star2"></div>
-      <div class="shooting-star" id="star3"></div>
+      <div class="shooting-star" id="star1" style="z-index: 0;"></div>
+      <div class="shooting-star" id="star2" style="z-index: 0;"></div>
+      <div class="shooting-star" id="star3" style="z-index: 0;"></div>
     </div>
     <!-- --------------------Image upload--------------------------------->
     <div class="selected-image">

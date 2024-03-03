@@ -118,6 +118,7 @@ h3{
     height: 2px; 
     background: linear-gradient(to right, rgba(52, 49, 45, 1) 0%, rgba(217, 197, 178, 1) 50%, rgba(126, 127, 131, 1) 100%);
     animation: shootingStar 2s linear infinite;
+    z-index: 0;
 }
 
 @keyframes star1 {
@@ -150,10 +151,12 @@ h3{
     justify-content: space-evenly;
     gap: 10px;
     padding: 12px;
+    z-index: 1;
 }
 
 .img-pool {
-    width: 240px;
+    width: 250px;
+    height: 350px;
     border: 1px solid white;
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(255, 192, 203, 0.5);
@@ -163,7 +166,7 @@ h3{
 }
 
 .img-pool img {
-    width: 238px;
+    width: 248px;
     height: auto;
     display: block;
     transition: transform 0.5s ease;
@@ -178,6 +181,7 @@ h3{
     filter: grayscale(100%);
     transform: scale(1.05);
 }
+
 @media screen and (max-width: 600px) {
     .gallery{
         padding: 10px;
