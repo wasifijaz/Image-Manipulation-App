@@ -28,9 +28,10 @@ from torchvision.utils import draw_segmentation_masks, draw_keypoints
 import torch
 
 
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 
-DEFAULT_IMAGE_PATH = static('images/default.png')
+DEFAULT_IMAGE_PATH = static("images/default.png")
+
 
 def rcnnImageKeyPoints(image_path):
     weights = models.detection.KeypointRCNN_ResNet50_FPN_Weights.DEFAULT
@@ -42,8 +43,8 @@ def rcnnImageKeyPoints(image_path):
     person_float = transforms(person_int)
 
     outputs = model([person_float])
-    kpts = outputs[0]['keypoints']
-    scores = outputs[0]['scores']
+    kpts = outputs[0]["keypoints"]
+    scores = outputs[0]["scores"]
 
     detect_threshold = 0.75
     idx = torch.where(scores > detect_threshold)
@@ -51,11 +52,32 @@ def rcnnImageKeyPoints(image_path):
     res = draw_keypoints(person_int, keypoints, colors="blue", radius=3)
 
     connect_skeleton = [
-        (0, 1), (0, 2), (1, 3), (2, 4), (0, 5), (0, 6), (5, 7), (6, 8),
-        (7, 9), (8, 10), (5, 11), (6, 12), (11, 13), (12, 14), (13, 15), (14, 16)
+        (0, 1),
+        (0, 2),
+        (1, 3),
+        (2, 4),
+        (0, 5),
+        (0, 6),
+        (5, 7),
+        (6, 8),
+        (7, 9),
+        (8, 10),
+        (5, 11),
+        (6, 12),
+        (11, 13),
+        (12, 14),
+        (13, 15),
+        (14, 16),
     ]
-    res = draw_keypoints(person_int, keypoints, connectivity=connect_skeleton, colors="blue", radius=4, width=3)
-    
+    res = draw_keypoints(
+        person_int,
+        keypoints,
+        connectivity=connect_skeleton,
+        colors="blue",
+        radius=4,
+        width=3,
+    )
+
     image = np.array(to_pil_image(res))
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     return image
@@ -67,7 +89,7 @@ def maskrcnnImageSegmentation(image_path):
     model = model.eval()
 
     transforms = weights.transforms()
-    
+
     image = read_image(image_path)
     imageT = transforms(image)
 
@@ -75,11 +97,13 @@ def maskrcnnImageSegmentation(image_path):
     person_output = output[0]
 
     proba_threshold = 0.5
-    person_bool_masks = person_output['masks'] > proba_threshold
+    person_bool_masks = person_output["masks"] > proba_threshold
     person_bool_masks = person_bool_masks.squeeze(1)
 
     score_threshold = 0.75
-    boolean_masks = output[0]['masks'][output[0]['scores'] > score_threshold] > proba_threshold
+    boolean_masks = (
+        output[0]["masks"][output[0]["scores"] > score_threshold] > proba_threshold
+    )
     person_with_masks = draw_segmentation_masks(image, boolean_masks.squeeze(1))
 
     image = np.array(to_pil_image(person_with_masks))
@@ -91,7 +115,7 @@ def lrasppImageSegmentation(image_path):
     weights = models.segmentation.LRASPP_MobileNet_V3_Large_Weights.DEFAULT
     model = models.segmentation.lraspp_mobilenet_v3_large(weights=weights)
     model.eval()
-    
+
     preprocess = weights.transforms()
 
     img = read_image(image_path)
@@ -111,7 +135,7 @@ def deepLabImageSegmentation(image_path):
     weights = models.segmentation.DeepLabV3_MobileNet_V3_Large_Weights.DEFAULT
     model = models.segmentation.deeplabv3_mobilenet_v3_large(weights=weights)
     model.eval()
-    
+
     preprocess = weights.transforms()
 
     img = read_image(image_path)
@@ -134,13 +158,15 @@ def mediapipeFaceDetection(image_path):
     image = cv2.imread(image_path)
     image = cv2.cvtColor(image, cv2.IMREAD_COLOR)
 
-    with mp_face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5) as face_detection:
+    with mp_face_detection.FaceDetection(
+        model_selection=1, min_detection_confidence=0.5
+    ) as face_detection:
         results = face_detection.process(image)
-        
+
         if results.detections:
             for detection in results.detections:
                 mp_drawing.draw_detection(image, detection)
-    
+
     return image
 
 
@@ -151,9 +177,14 @@ def mediapipeFaceMesh(image_path):
 
     image = cv2.imread(image_path, cv2.IMREAD_COLOR)
 
-    with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1, refine_landmarks=True, min_detection_confidence=0.5) as face_mesh:
+    with mp_face_mesh.FaceMesh(
+        static_image_mode=True,
+        max_num_faces=1,
+        refine_landmarks=True,
+        min_detection_confidence=0.5,
+    ) as face_mesh:
         results = face_mesh.process(image)
-        
+
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
                 mp_drawing.draw_landmarks(
@@ -161,8 +192,9 @@ def mediapipeFaceMesh(image_path):
                     landmark_list=face_landmarks,
                     connections=mp_face_mesh.FACEMESH_CONTOURS,
                     landmark_drawing_spec=drawing_spec,
-                    connection_drawing_spec=drawing_spec)
-    
+                    connection_drawing_spec=drawing_spec,
+                )
+
     return image
 
 
@@ -177,7 +209,7 @@ def deeplearningDlibFaceDetection(image_path):
             draw.line(face_landmarks[facial_feature], width=5)
 
     output = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
-    
+
     return output
 
 
@@ -185,7 +217,7 @@ def fcnImageSegmentation(image_path):
     weights = models.segmentation.FCN_ResNet101_Weights.DEFAULT
     model = models.segmentation.fcn_resnet101(weights=weights)
     model.eval()
-    
+
     preprocess = weights.transforms()
 
     img = read_image(image_path)
@@ -202,20 +234,22 @@ def fcnImageSegmentation(image_path):
 
 
 def haarCascadeFaceDetection(image_path):
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+    face_cascade = cv2.CascadeClassifier(
+        cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+    )
+    eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
 
     img = cv2.imread(image_path, cv2.IMREAD_COLOR)
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
 
     for (x, y, w, h) in faces:
-        cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
-        roi_gray = gray[y:y+h, x:x+w]
-        roi_color = img[y:y+h, x:x+w]
+        cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        roi_gray = gray[y : y + h, x : x + w]
+        roi_color = img[y : y + h, x : x + w]
         eyes = eye_cascade.detectMultiScale(roi_gray)
         for (ex, ey, ew, eh) in eyes:
-            cv2.rectangle(roi_color, (ex, ey), (ex+ew, ey+eh), (0, 255, 0), 2)
+            cv2.rectangle(roi_color, (ex, ey), (ex + ew, ey + eh), (0, 255, 0), 2)
 
     return img
 
@@ -229,30 +263,60 @@ def mtcnnFaceDetection(image_path):
     face_count = len(output)
 
     for i in range(0, face_count):
-        conf = output[i]['confidence']
+        conf = output[i]["confidence"]
 
         if conf > 0.6:
-            box = output[i]['box']
-            keypoints = output[i]['keypoints']
-            left_eye = list(keypoints['left_eye'])
-            right_eye = list(keypoints['right_eye'])
-            nose = list(keypoints['nose'])
-            mouth_right = list(keypoints['mouth_right'])
-            mouth_left = list(keypoints['mouth_left'])
+            box = output[i]["box"]
+            keypoints = output[i]["keypoints"]
+            left_eye = list(keypoints["left_eye"])
+            right_eye = list(keypoints["right_eye"])
+            nose = list(keypoints["nose"])
+            mouth_right = list(keypoints["mouth_right"])
+            mouth_left = list(keypoints["mouth_left"])
 
-            cv2.rectangle(source, (box[0],box[1]),(box[0]+box[2],box[1]+box[3]),(0,0,255),4)
-            cv2.rectangle(source, (left_eye[0]-10,left_eye[1]-10),(left_eye[0]+10,left_eye[1]+10),(0,0,255),4)
-            cv2.rectangle(source, (right_eye[0]-10,right_eye[1]-10),(right_eye[0]+10,right_eye[1]+10),(0,0,255),4)
-            cv2.rectangle(source, (nose[0]-25,nose[1]-25),(nose[0]+25,nose[1]+25),(0,0,255),4)
-            cv2.rectangle(source, (mouth_right[0],mouth_right[1]-5),(mouth_left[0],mouth_left[1]),(0,0,255),4)
-      
+            cv2.rectangle(
+                source,
+                (box[0], box[1]),
+                (box[0] + box[2], box[1] + box[3]),
+                (0, 0, 255),
+                4,
+            )
+            cv2.rectangle(
+                source,
+                (left_eye[0] - 10, left_eye[1] - 10),
+                (left_eye[0] + 10, left_eye[1] + 10),
+                (0, 0, 255),
+                4,
+            )
+            cv2.rectangle(
+                source,
+                (right_eye[0] - 10, right_eye[1] - 10),
+                (right_eye[0] + 10, right_eye[1] + 10),
+                (0, 0, 255),
+                4,
+            )
+            cv2.rectangle(
+                source,
+                (nose[0] - 25, nose[1] - 25),
+                (nose[0] + 25, nose[1] + 25),
+                (0, 0, 255),
+                4,
+            )
+            cv2.rectangle(
+                source,
+                (mouth_right[0], mouth_right[1] - 5),
+                (mouth_left[0], mouth_left[1]),
+                (0, 0, 255),
+                4,
+            )
+
     return source
 
 
 def hsvThresholdSegmentation(image_path):
     image = imread(image_path)
     image_hsv = rgb2hsv(image)
-    image_h = image_hsv[:,:,0]
+    image_h = image_hsv[:, :, 0]
     n, bins, patches = plt.hist(image_h.ravel(), bins=256, range=[0, 1])
     peaks, _ = find_peaks(n, height=0)
     if peaks.size > 0:
@@ -288,10 +352,10 @@ def svmSegmentation(image_path):
         ratio = 256 / original_width
         new_height = int(original_height * ratio)
         source = cv2.resize(source, (256, new_height), interpolation=cv2.INTER_AREA)
-    
+
     source = cv2.cvtColor(source, cv2.COLOR_BGR2RGB)
     M, N, dim = source.shape
-    
+
     im_hsv = rgb2hsv(source)
 
     X = np.reshape(im_hsv, (-1, dim))
@@ -311,105 +375,129 @@ def svmSegmentation(image_path):
     im_pred[..., 2] = predX
     im_pred_rgb = hsv2rgb(im_pred)
 
-    im_pred_rgb = cv2.cvtColor(cv2.cvtColor((im_pred_rgb * 255).astype(np.uint8), cv2.COLOR_RGB2BGR), cv2.COLOR_BGR2RGB)
+    im_pred_rgb = cv2.cvtColor(
+        cv2.cvtColor((im_pred_rgb * 255).astype(np.uint8), cv2.COLOR_RGB2BGR),
+        cv2.COLOR_BGR2RGB,
+    )
     return im_pred_rgb
 
-    
-def cannyEdgeDetection(image_path):    
-    img = cv2.imread(image_path) 
+
+def cannyEdgeDetection(image_path):
+    img = cv2.imread(image_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    gray = np.dot(img[...,:3], [0.299, 0.587, 0.114])
+    gray = np.dot(img[..., :3], [0.299, 0.587, 0.114])
     gray_blurred = ndimage.gaussian_filter(gray, sigma=1.4)
-    
+
     def Normalize(img):
-        img = img/np.max(img)
+        img = img / np.max(img)
         return img
-    
-    Gx = np.array([[-1,0,+1], [-2,0,+2],  [-1,0,+1]])
+
+    Gx = np.array([[-1, 0, +1], [-2, 0, +2], [-1, 0, +1]])
     gx = ndimage.convolve(gray_blurred, Gx)
     gx = Normalize(gx)
-    
-    Gy = np.array([[-1,-2,-1], [0,0,0], [+1,+2,+1]])
+
+    Gy = np.array([[-1, -2, -1], [0, 0, 0], [+1, +2, +1]])
     gy = ndimage.convolve(gray_blurred, Gy)
     gy = Normalize(gy)
-    
-    Mag = np.hypot(gx,gy)
+
+    Mag = np.hypot(gx, gy)
     Mag = Normalize(Mag)
-    
-    Gradient = np.degrees(np.arctan2(gy,gx))
-    
+
+    Gradient = np.degrees(np.arctan2(gy, gx))
+
     NMS = np.zeros(Mag.shape)
-    
+
     for i in range(1, int(Mag.shape[0]) - 1):
         for j in range(1, int(Mag.shape[1]) - 1):
-            if((Gradient[i,j] >= 0 and Gradient[i,j] <= 45) or (Gradient[i,j] < -135 and Gradient[i,j] >= -180)):
-                yBot = np.array([Mag[i,j+1], Mag[i+1,j+1]])
-                yTop = np.array([Mag[i,j-1], Mag[i-1,j-1]])
-                x_est = np.absolute(gy[i,j]/Mag[i,j])
-                if (Mag[i,j] >= ((yBot[1]-yBot[0])*x_est+yBot[0]) and Mag[i,j] >= ((yTop[1]-yTop[0])*x_est+yTop[0])):
-                    NMS[i,j] = Mag[i,j]
+            if (Gradient[i, j] >= 0 and Gradient[i, j] <= 45) or (
+                Gradient[i, j] < -135 and Gradient[i, j] >= -180
+            ):
+                yBot = np.array([Mag[i, j + 1], Mag[i + 1, j + 1]])
+                yTop = np.array([Mag[i, j - 1], Mag[i - 1, j - 1]])
+                x_est = np.absolute(gy[i, j] / Mag[i, j])
+                if Mag[i, j] >= ((yBot[1] - yBot[0]) * x_est + yBot[0]) and Mag[
+                    i, j
+                ] >= ((yTop[1] - yTop[0]) * x_est + yTop[0]):
+                    NMS[i, j] = Mag[i, j]
                 else:
-                    NMS[i,j] = 0
-            if((Gradient[i,j] > 45 and Gradient[i,j] <= 90) or (Gradient[i,j] < -90 and Gradient[i,j] >= -135)):
-                yBot = np.array([Mag[i+1,j] ,Mag[i+1,j+1]])
-                yTop = np.array([Mag[i-1,j] ,Mag[i-1,j-1]])
-                x_est = np.absolute(gx[i,j]/Mag[i,j])
-                if (Mag[i,j] >= ((yBot[1]-yBot[0])*x_est+yBot[0]) and Mag[i,j] >= ((yTop[1]-yTop[0])*x_est+yTop[0])):
-                    NMS[i,j] = Mag[i,j]
+                    NMS[i, j] = 0
+            if (Gradient[i, j] > 45 and Gradient[i, j] <= 90) or (
+                Gradient[i, j] < -90 and Gradient[i, j] >= -135
+            ):
+                yBot = np.array([Mag[i + 1, j], Mag[i + 1, j + 1]])
+                yTop = np.array([Mag[i - 1, j], Mag[i - 1, j - 1]])
+                x_est = np.absolute(gx[i, j] / Mag[i, j])
+                if Mag[i, j] >= ((yBot[1] - yBot[0]) * x_est + yBot[0]) and Mag[
+                    i, j
+                ] >= ((yTop[1] - yTop[0]) * x_est + yTop[0]):
+                    NMS[i, j] = Mag[i, j]
                 else:
-                    NMS[i,j] = 0
-            if((Gradient[i,j] > 90 and Gradient[i,j] <= 135) or (Gradient[i,j] < -45 and Gradient[i,j] >= -90)):
-                yBot = np.array([Mag[i+1,j] ,Mag[i+1,j-1]])
-                yTop = np.array([Mag[i-1,j] ,Mag[i-1,j+1]])
-                x_est = np.absolute(gx[i,j]/Mag[i,j])
-                if (Mag[i,j] >= ((yBot[1]-yBot[0])*x_est+yBot[0]) and Mag[i,j] >= ((yTop[1]-yTop[0])*x_est+yTop[0])):
-                    NMS[i,j] = Mag[i,j]
+                    NMS[i, j] = 0
+            if (Gradient[i, j] > 90 and Gradient[i, j] <= 135) or (
+                Gradient[i, j] < -45 and Gradient[i, j] >= -90
+            ):
+                yBot = np.array([Mag[i + 1, j], Mag[i + 1, j - 1]])
+                yTop = np.array([Mag[i - 1, j], Mag[i - 1, j + 1]])
+                x_est = np.absolute(gx[i, j] / Mag[i, j])
+                if Mag[i, j] >= ((yBot[1] - yBot[0]) * x_est + yBot[0]) and Mag[
+                    i, j
+                ] >= ((yTop[1] - yTop[0]) * x_est + yTop[0]):
+                    NMS[i, j] = Mag[i, j]
                 else:
-                    NMS[i,j] = 0
-            if((Gradient[i,j] > 135 and Gradient[i,j] <= 180) or (Gradient[i,j] < 0 and Gradient[i,j] >= -45)):
-                yBot = np.array([Mag[i,j-1] ,Mag[i+1,j-1]])
-                yTop = np.array([Mag[i,j+1] ,Mag[i-1,j+1]])
-                x_est = np.absolute(gy[i,j]/Mag[i,j])
-                if (Mag[i,j] >= ((yBot[1]-yBot[0])*x_est+yBot[0]) and Mag[i,j] >= ((yTop[1]-yTop[0])*x_est+yTop[0])):
-                    NMS[i,j] = Mag[i,j]
+                    NMS[i, j] = 0
+            if (Gradient[i, j] > 135 and Gradient[i, j] <= 180) or (
+                Gradient[i, j] < 0 and Gradient[i, j] >= -45
+            ):
+                yBot = np.array([Mag[i, j - 1], Mag[i + 1, j - 1]])
+                yTop = np.array([Mag[i, j + 1], Mag[i - 1, j + 1]])
+                x_est = np.absolute(gy[i, j] / Mag[i, j])
+                if Mag[i, j] >= ((yBot[1] - yBot[0]) * x_est + yBot[0]) and Mag[
+                    i, j
+                ] >= ((yTop[1] - yTop[0]) * x_est + yTop[0]):
+                    NMS[i, j] = Mag[i, j]
                 else:
-                    NMS[i,j] = 0
-    
+                    NMS[i, j] = 0
+
     NMS = Normalize(NMS)
-    
-    highThresholdRatio = 0.2  
-    lowThresholdRatio = 0.15 
+
+    highThresholdRatio = 0.2
+    lowThresholdRatio = 0.15
     GSup = np.copy(NMS)
     h = int(GSup.shape[0])
     w = int(GSup.shape[1])
     highThreshold = np.max(GSup) * highThresholdRatio
-    lowThreshold = highThreshold * lowThresholdRatio    
+    lowThreshold = highThreshold * lowThresholdRatio
     x = 0.1
-    oldx=0
-    
-    while(oldx != x):
+    oldx = 0
+
+    while oldx != x:
         oldx = x
-        for i in range(1,h-1):
-            for j in range(1,w-1):
-                if(GSup[i,j] > highThreshold):
-                    GSup[i,j] = 1
-                elif(GSup[i,j] < lowThreshold):
-                    GSup[i,j] = 0
+        for i in range(1, h - 1):
+            for j in range(1, w - 1):
+                if GSup[i, j] > highThreshold:
+                    GSup[i, j] = 1
+                elif GSup[i, j] < lowThreshold:
+                    GSup[i, j] = 0
                 else:
-                    if((GSup[i-1,j-1] > highThreshold) or 
-                        (GSup[i-1,j] > highThreshold) or
-                        (GSup[i-1,j+1] > highThreshold) or
-                        (GSup[i,j-1] > highThreshold) or
-                        (GSup[i,j+1] > highThreshold) or
-                        (GSup[i+1,j-1] > highThreshold) or
-                        (GSup[i+1,j] > highThreshold) or
-                        (GSup[i+1,j+1] > highThreshold)):
-                        GSup[i,j] = 1
+                    if (
+                        (GSup[i - 1, j - 1] > highThreshold)
+                        or (GSup[i - 1, j] > highThreshold)
+                        or (GSup[i - 1, j + 1] > highThreshold)
+                        or (GSup[i, j - 1] > highThreshold)
+                        or (GSup[i, j + 1] > highThreshold)
+                        or (GSup[i + 1, j - 1] > highThreshold)
+                        or (GSup[i + 1, j] > highThreshold)
+                        or (GSup[i + 1, j + 1] > highThreshold)
+                    ):
+                        GSup[i, j] = 1
         x = np.sum(GSup == 1)
-    
+
     GSup = (GSup == 1) * GSup
-    cannyImage = cv2.cvtColor(cv2.cvtColor((GSup * 255).astype(np.uint8), cv2.COLOR_RGB2BGR), cv2.COLOR_BGR2RGB)
-    
+    cannyImage = cv2.cvtColor(
+        cv2.cvtColor((GSup * 255).astype(np.uint8), cv2.COLOR_RGB2BGR),
+        cv2.COLOR_BGR2RGB,
+    )
+
     return cannyImage
 
 
@@ -421,27 +509,29 @@ def cannyEdgeDetection1(gray):
 
     low_threshold = int(max(0, (1.0 - k) * mean_intensity - k * std_intensity))
     high_threshold = int(min(255, (1.0 + k) * mean_intensity + k * std_intensity))
-    
-    canny = cv2.cvtColor(cv2.Canny(blur_gray, low_threshold, high_threshold),cv2.COLOR_GRAY2RGB)
+
+    canny = cv2.cvtColor(
+        cv2.Canny(blur_gray, low_threshold, high_threshold), cv2.COLOR_GRAY2RGB
+    )
 
     return canny
 
 
 def gaussianBlurImage(image):
-    GaussianBlur_kernel = np.array([[1,2,1], [2,4,2], [1,2,1]])/16
-    GaussianBlur = cv2.filter2D(src = image, ddepth = -1, kernel = GaussianBlur_kernel)
+    GaussianBlur_kernel = np.array([[1, 2, 1], [2, 4, 2], [1, 2, 1]]) / 16
+    GaussianBlur = cv2.filter2D(src=image, ddepth=-1, kernel=GaussianBlur_kernel)
 
     return GaussianBlur
 
 
 def scharrEdgeDetection(image):
-    normalized_img = image/255
-    scharrx = np.array([[-3,0,3],[-10,0,10],[-3,0,3]], np.float32)
-    
+    normalized_img = image / 255
+    scharrx = np.array([[-3, 0, 3], [-10, 0, 10], [-3, 0, 3]], np.float32)
+
     Ix = ndimage.filters.convolve(normalized_img, scharrx)
     scharry = np.rot90(scharrx)
     Iy = ndimage.filters.convolve(normalized_img, scharry)
-    
+
     G = np.hypot(Ix, Iy)
     G = G / G.max() * 255
     theta = np.arctan2(Iy, Ix)
@@ -450,13 +540,13 @@ def scharrEdgeDetection(image):
 
 
 def sobelEdgeDetection(image):
-    normalized_img = image/255
-    sobelx = np.array([[-1,0,1],[-2,0,2],[-1,0,1]], np.float32)
-    
+    normalized_img = image / 255
+    sobelx = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], np.float32)
+
     Ix = ndimage.filters.convolve(normalized_img, sobelx)
     sobely = np.rot90(sobelx)
     Iy = ndimage.filters.convolve(normalized_img, sobely)
-    
+
     G = np.hypot(Ix, Iy)
     G = G / G.max() * 255
     theta = np.arctan2(Iy, Ix)
@@ -465,54 +555,54 @@ def sobelEdgeDetection(image):
 
 
 def prewittEdgeDetection(gray):
-    normalized_img = gray/255
+    normalized_img = gray / 255
     prewittx = np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]], np.float32)
     prewitty = np.array([[-1, -1, -1], [0, 0, 0], [1, 1, 1]], np.float32)
-    
-    Ix = ndimage.filters.convolve(normalized_img, prewittx) 
+
+    Ix = ndimage.filters.convolve(normalized_img, prewittx)
     Iy = ndimage.filters.convolve(normalized_img, prewitty)
-    
+
     G = np.hypot(Ix, Iy)
     G = G / G.max() * 255
-    
+
     return G
 
 
 def robertsEdgeDetection(gray):
-    normalized_img = gray/255
-    robertsx = np.array([[1,0],[0,-1]], np.float32)
-    robertsy = np.array([[0,1],[-1,0]], np.float32)
-    
-    Ix = ndimage.filters.convolve(normalized_img, robertsx) 
+    normalized_img = gray / 255
+    robertsx = np.array([[1, 0], [0, -1]], np.float32)
+    robertsy = np.array([[0, 1], [-1, 0]], np.float32)
+
+    Ix = ndimage.filters.convolve(normalized_img, robertsx)
     Iy = ndimage.filters.convolve(normalized_img, robertsy)
-    
+
     G = np.hypot(Ix, Iy)
     G = G / G.max() * 255
-    
+
     return G
 
 
 def encodeImage(image):
-    _, buffer = cv2.imencode('.jpg', image)
-    encoded_image = base64.b64encode(buffer).decode('utf-8')
+    _, buffer = cv2.imencode(".jpg", image)
+    encoded_image = base64.b64encode(buffer).decode("utf-8")
     return encoded_image
 
 
 def my_kmeans(data, k, criteria, max_iterations=100, flags=None):
     centroids = data[np.random.choice(len(data), k, replace=False)]
-    
+
     compactness_history = []
-    
+
     for _ in range(max_iterations):
         distances = np.linalg.norm(data - centroids[:, np.newaxis], axis=2)
         labels = np.argmin(distances, axis=0)
-        
+
         for i in range(k):
             centroids[i] = np.mean(data[labels == i], axis=0)
-        
+
         compactness = np.sum((data - centroids[labels]) ** 2)
         compactness_history.append(compactness)
-    
+
     return compactness_history, labels, centroids
 
 
@@ -520,13 +610,15 @@ def kmeansSegmentation(image_path, num_of_clusters):
     source = cv2.imread(image_path, cv2.IMREAD_COLOR)
     height, width, _ = source.shape
     if height > 1000 or width > 1000:
-        source = cv2.resize(source, (0,0), fx=0.25, fy=0.25)
-    source_2d = source.reshape((-1,3))
+        source = cv2.resize(source, (0, 0), fx=0.25, fy=0.25)
+    source_2d = source.reshape((-1, 3))
     source_2d = np.float32(source_2d)
 
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.85)
     flags = cv2.KMEANS_RANDOM_CENTERS
-    compactness,labels,centers = my_kmeans(source_2d,num_of_clusters,criteria,10,flags)
+    compactness, labels, centers = my_kmeans(
+        source_2d, num_of_clusters, criteria, 10, flags
+    )
 
     centers = np.uint8(centers)
     output = centers[labels.flatten()]
@@ -536,8 +628,8 @@ def kmeansSegmentation(image_path, num_of_clusters):
 
 
 def dbscanSegmentation(image_path):
-    eps=10
-    min_samples=100
+    eps = 10
+    min_samples = 100
 
     image = cv2.imread(image_path, cv2.IMREAD_COLOR)
     height, width, dim = image.shape
@@ -552,13 +644,15 @@ def dbscanSegmentation(image_path):
         new_height = int(original_height * ratio)
         image = cv2.resize(image, (256, new_height), interpolation=cv2.INTER_AREA)
     img_flat = image.reshape((-1, 3))
-    
+
     height, width = image.shape[:2]
-    y_positions, x_positions = np.meshgrid(np.arange(height), np.arange(width), indexing='ij')
+    y_positions, x_positions = np.meshgrid(
+        np.arange(height), np.arange(width), indexing="ij"
+    )
     pixels_positions = np.column_stack((y_positions.flatten(), x_positions.flatten()))
 
     features = np.hstack((img_flat, pixels_positions))
-    
+
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
     clusters = dbscan.fit_predict(features)
     clustered_img = clusters.reshape(image.shape[:2])
@@ -569,38 +663,41 @@ def dbscanSegmentation(image_path):
     im_pred[..., 2] = clustered_img
     im_pred_rgb = hsv2rgb(im_pred)
 
-    im_pred_rgb = cv2.cvtColor(cv2.cvtColor((im_pred_rgb * 255).astype(np.uint8), cv2.COLOR_RGB2BGR), cv2.COLOR_BGR2RGB)
-    
+    im_pred_rgb = cv2.cvtColor(
+        cv2.cvtColor((im_pred_rgb * 255).astype(np.uint8), cv2.COLOR_RGB2BGR),
+        cv2.COLOR_BGR2RGB,
+    )
+
     return im_pred_rgb
 
 
 def logEdgeDetection(gray):
     img_blur = gaussianBlurImage(gray)
 
-    laplacian_kernel = np.array([[0,1,0],[1,-4,1],[0,1,0]], np.float32)
+    laplacian_kernel = np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]], np.float32)
     laplacian = cv2.filter2D(img_blur, cv2.CV_64F, laplacian_kernel)
     laplacian_abs = np.uint8(np.absolute(laplacian))
     log_edges = np.abs(laplacian_abs).astype(np.uint8)
-    
+
     return log_edges
 
 
 def laplacianEdgeDetection(gray):
     img_blur = gaussianBlurImage(gray)
 
-    laplacian_kernel = np.array([[0,1,0],[1,-4,1],[0,1,0]], np.float32)
+    laplacian_kernel = np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]], np.float32)
     laplacian = cv2.filter2D(img_blur, cv2.CV_64F, laplacian_kernel)
     laplacian_abs = np.uint8(np.absolute(laplacian))
-    
+
     return laplacian_abs
 
 
 def sharpenImage(gray):
-    edge_kernal = np.array([[0,-1,0],[-1,4,-1],[0,-1,0]], np.float32)
-    identity_kernal = np.array([[0,0,0],[0,1,0],[0,0,0]], np.float32)
+    edge_kernal = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]], np.float32)
+    identity_kernal = np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]], np.float32)
     sharpen_kernal = edge_kernal + identity_kernal
     sharp_img = cv2.filter2D(gray, -1, sharpen_kernal)
-    
+
     return sharp_img
 
 
@@ -608,8 +705,8 @@ def grayscaleImage(image_path):
     img = cv2.imread(image_path, 0)
     height, width = img.shape
     if height > 1000 or width > 1000:
-        img = cv2.resize(img, (0,0), fx=0.25, fy=0.25)
-    
+        img = cv2.resize(img, (0, 0), fx=0.25, fy=0.25)
+
     return img
 
 
@@ -623,7 +720,9 @@ def thresholdImage(gray):
 def adaptiveThresholdImage(image_path):
     image = plt.imread(image_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    thresholded_img = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 9, 5)
+    thresholded_img = cv2.adaptiveThreshold(
+        image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 9, 5
+    )
 
     return thresholded_img
 
@@ -632,30 +731,30 @@ def checkClusters(image_path):
     source = cv2.imread(image_path)
     height, width, _ = source.shape
     if height > 1000 or width > 1000:
-        source = cv2.resize(source, (0,0), fx=0.25, fy=0.25)
+        source = cv2.resize(source, (0, 0), fx=0.25, fy=0.25)
     source = cv2.cvtColor(source, cv2.COLOR_BGR2RGB)
-    source_2d = source.reshape((-1,3))
+    source_2d = source.reshape((-1, 3))
     source_2d = np.float32(source_2d)
 
     inertia = []
 
-    for i in range(1,10):
-        km = KMeans(n_clusters = i, init='k-means++')
+    for i in range(1, 10):
+        km = KMeans(n_clusters=i, init="k-means++")
         km.fit(source_2d)
         inertia.append(km.inertia_)
 
-    df = pd.DataFrame({'Inertia': inertia, 'Clusters': range(1,10)})
+    df = pd.DataFrame({"Inertia": inertia, "Clusters": range(1, 10)})
 
     fig, ax = plt.subplots()
 
-    ax.plot(df['Clusters'], df['Inertia'])
-    ax.scatter(df['Clusters'], df['Inertia'])
+    ax.plot(df["Clusters"], df["Inertia"])
+    ax.scatter(df["Clusters"], df["Inertia"])
 
     buffer = BytesIO()
-    plt.savefig(buffer, format='png')
+    plt.savefig(buffer, format="png")
     buffer.seek(0)
 
-    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+    image_base64 = base64.b64encode(buffer.read()).decode("utf-8")
     buffer.close()
 
     return image_base64
@@ -668,14 +767,18 @@ def worker(task_info):
 
 def myapp(request):
     uploaded_images = Image.objects.all()
-    
-    folder_path = 'media/images'
-    existing_images = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-    images = list(uploaded_images) + [{'filename': f} for f in existing_images]
+
+    folder_path = "media/images"
+    existing_images = [
+        f
+        for f in os.listdir(folder_path)
+        if os.path.isfile(os.path.join(folder_path, f))
+    ]
+    images = list(uploaded_images) + [{"filename": f} for f in existing_images]
 
     selected_image = None
     num_of_clusters = 3
-    image_id = request.GET.get('select_image')
+    image_id = request.GET.get("select_image")
     if image_id:
         try:
             image_id = int(image_id)
@@ -689,19 +792,21 @@ def myapp(request):
                 if fs_image_index < len(existing_images):
                     selected_image = existing_images[fs_image_index]
         except ValueError:
-            pass  
-    
-    if request.method == 'POST':
+            pass
+
+    if request.method == "POST":
         cluster_form = ClusterForm(request.POST)
         form = ImageUploadForm(request.POST, request.FILES)
         if form.is_valid():
             Image.objects.update(selected=False)
-            image_instance = Image(title=form.cleaned_data['image'].name, image=form.cleaned_data['image'])
+            image_instance = Image(
+                title=form.cleaned_data["image"].name, image=form.cleaned_data["image"]
+            )
             image_instance.selected = True
             image_instance.save()
-            return redirect('myapp') 
+            return redirect("myapp")
         if cluster_form.is_valid():
-            num_of_clusters = int(cluster_form.cleaned_data['cluster_input'])
+            num_of_clusters = int(cluster_form.cleaned_data["cluster_input"])
         else:
             num_of_clusters = 3
     else:
@@ -710,7 +815,7 @@ def myapp(request):
 
     if selected_image:
         image_path = selected_image.image.path
-        
+
         grayImage = grayscaleImage(image_path)
         sharpImage = sharpenImage(grayImage)
         sobelImage, theta = sobelEdgeDetection(grayImage)
@@ -727,7 +832,13 @@ def myapp(request):
             (thresholdImage, (grayImage,)),
             (adaptiveThresholdImage, (image_path,)),
             (checkClusters, (image_path,)),
-            (kmeansSegmentation, (image_path,int(num_of_clusters),)),
+            (
+                kmeansSegmentation,
+                (
+                    image_path,
+                    int(num_of_clusters),
+                ),
+            ),
             (dbscanSegmentation, (image_path,)),
             (svmSegmentation, (image_path,)),
             (mtcnnFaceDetection, (image_path,)),
@@ -740,19 +851,42 @@ def myapp(request):
             (lrasppImageSegmentation, (image_path,)),
             (maskrcnnImageSegmentation, (image_path,)),
             (rcnnImageKeyPoints, (image_path,)),
-            (hsvThresholdSegmentation, (image_path,))
+            (hsvThresholdSegmentation, (image_path,)),
         ]
         num_processes = min(len(tasks), cpu_count())
         with Pool(processes=num_processes) as pool:
             results = pool.map(worker, tasks)
-        
-        gaussianImage,laplacianImage,scharrImage,cannyImage,cannyImage1,\
-        robertsImage,prewittImage,logImage,threshImage,adaptiveThreshImage,\
-        clusterGraph,kmeansImage,dbscanImage,svmImage,mtcnnImage,haarCascadeImage,\
-        fcnSegmentationImage,dlibImage,blazeFaceImage,faceMeshImage, deepLabImage,\
-        lrasppImage, maskrcnnImage, keypointImage, hsvSegmentationImage = results
-    else: 
-        defaultImage = cv2.imread("myapp"+DEFAULT_IMAGE_PATH)
+
+        (
+            gaussianImage,
+            laplacianImage,
+            scharrImage,
+            cannyImage,
+            cannyImage1,
+            robertsImage,
+            prewittImage,
+            logImage,
+            threshImage,
+            adaptiveThreshImage,
+            clusterGraph,
+            kmeansImage,
+            dbscanImage,
+            svmImage,
+            mtcnnImage,
+            haarCascadeImage,
+            fcnSegmentationImage,
+            dlibImage,
+            blazeFaceImage,
+            faceMeshImage,
+            deepLabImage,
+            lrasppImage,
+            maskrcnnImage,
+            keypointImage,
+            hsvSegmentationImage,
+        ) = results
+    else:
+        defaultImage = cv2.imread("myapp" + DEFAULT_IMAGE_PATH)
+        selected_image = encodeImage(defaultImage)
         grayImage = defaultImage
         gaussianImage = defaultImage
         sharpImage = defaultImage
@@ -782,36 +916,40 @@ def myapp(request):
         keypointImage = defaultImage
         hsvSegmentationImage = defaultImage
 
-    return render(request, 'image_app/myapp.html', {
-        'images': list(enumerate(images)), 
-        'form': form,
-        'selected_image': selected_image,
-        'gray_image': encodeImage(grayImage),
-        'gaussian_image': encodeImage(gaussianImage),
-        'sharp_image': encodeImage(sharpImage),
-        'laplacian_edge_detection': encodeImage(laplacianImage),
-        'sobel_image': encodeImage(sobelImage),
-        'scharr_image': encodeImage(scharrImage),
-        'canny_image': encodeImage(cannyImage1),
-        'canny_image_1': encodeImage(cannyImage),
-        'roberts_image': encodeImage(robertsImage),
-        'prewitt_image': encodeImage(prewittImage),
-        'log_image': encodeImage(logImage),
-        'thresh_image': encodeImage(threshImage),
-        'adaptive_thresh_image': encodeImage(adaptiveThreshImage),
-        'cluster_graph': clusterGraph,
-        'kmeans_segmentation': encodeImage(kmeansImage),
-        'dbscan_image': encodeImage(dbscanImage),
-        'svm_image': encodeImage(svmImage),
-        'mtcnn_image': encodeImage(mtcnnImage),
-        'haar_cascade_image' : encodeImage(haarCascadeImage),
-        'fcn_segmentation': encodeImage(fcnSegmentationImage),
-        'hsv_segmentation': encodeImage(hsvSegmentationImage),
-        'dlib_image' : encodeImage(dlibImage),
-        'blaze_face_image' : encodeImage(blazeFaceImage),
-        'face_mesh_image' : encodeImage(faceMeshImage),
-        'deeplab_image' : encodeImage(deepLabImage),
-        'lraspp_image' : encodeImage(lrasppImage),
-        'maskrcnn_image' : encodeImage(maskrcnnImage),
-        'keypoint_image' : encodeImage(keypointImage),
-    })
+    return render(
+        request,
+        "image_app/myapp.html",
+        {
+            "images": list(enumerate(images)),
+            "form": form,
+            "selected_image": selected_image,
+            "gray_image": encodeImage(grayImage),
+            "gaussian_image": encodeImage(gaussianImage),
+            "sharp_image": encodeImage(sharpImage),
+            "laplacian_edge_detection": encodeImage(laplacianImage),
+            "sobel_image": encodeImage(sobelImage),
+            "scharr_image": encodeImage(scharrImage),
+            "canny_image": encodeImage(cannyImage1),
+            "canny_image_1": encodeImage(cannyImage),
+            "roberts_image": encodeImage(robertsImage),
+            "prewitt_image": encodeImage(prewittImage),
+            "log_image": encodeImage(logImage),
+            "thresh_image": encodeImage(threshImage),
+            "adaptive_thresh_image": encodeImage(adaptiveThreshImage),
+            "cluster_graph": clusterGraph,
+            "kmeans_segmentation": encodeImage(kmeansImage),
+            "dbscan_image": encodeImage(dbscanImage),
+            "svm_image": encodeImage(svmImage),
+            "mtcnn_image": encodeImage(mtcnnImage),
+            "haar_cascade_image": encodeImage(haarCascadeImage),
+            "fcn_segmentation": encodeImage(fcnSegmentationImage),
+            "hsv_segmentation": encodeImage(hsvSegmentationImage),
+            "dlib_image": encodeImage(dlibImage),
+            "blaze_face_image": encodeImage(blazeFaceImage),
+            "face_mesh_image": encodeImage(faceMeshImage),
+            "deeplab_image": encodeImage(deepLabImage),
+            "lraspp_image": encodeImage(lrasppImage),
+            "maskrcnn_image": encodeImage(maskrcnnImage),
+            "keypoint_image": encodeImage(keypointImage),
+        },
+    )
