@@ -227,19 +227,19 @@
           </div>
         </div>
         <div></div>
-        <div id="svm_image_1" class="image-container">
-          <p>SVM Image Segmentation</p>
-          <img src="data:image/jpeg;base64,{{ svm_image_1 }}" alt="svm_image_1 image" class="processed-image" />
+        <div id="dlib_hog_image" class="image-container">
+          <p>Dlib Hog Face Detection</p>
+          <img src="data:image/jpeg;base64,{{ dlib_hog_image }}" alt="dlib_hog_image image" class="processed-image" />
           <div class="overlay">
-            <p>Additional information about the grayscale image.</p>
+            <p>The HOG + Dlib face detection method combines the Histogram of Oriented Gradients (HOG) feature descriptor for object detection with Dlib's machine learning based algorithm to locate and identify human faces within an image. This approach effectively captures edge and gradient structures that are unique to faces, allowing for accurate detection even in varied conditions.</p>
           </div>
         </div>
         <div></div>
-        <div id="fcn_segmentation_1" class="image-container">
-          <p>FCN RESNET101 Segmentation</p>
-          <img src="data:image/jpeg;base64,{{ fcn_segmentation_1 }}" alt="fcn_segmentation_1 image" class="processed-image" />
+        <div id="svm_hog_image" class="image-container">
+          <p>SVM Hog Human Detection</p>
+          <img src="data:image/jpeg;base64,{{ svm_hog_image }}" alt="svm_hog_image image" class="processed-image" />
           <div class="overlay">
-            <p>Additional information about the grayscale image.</p>
+            <p>HOG (Histogram of Oriented Gradients) + SVM (Support Vector Machine) human detection involves extracting gradient and orientation information from image regions as features (HOG) and using these features to train a SVM classifier to distinguish between human and non-human images. The trained SVM model is then used to scan new images for faces, effectively identifying and locating them based on the learned patterns.</p>
           </div>
         </div>
       </div>

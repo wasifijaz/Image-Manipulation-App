@@ -2,35 +2,175 @@ from django.shortcuts import render, redirect
 from django.templatetags.static import static
 from .models import Image
 from .forms import ImageUploadForm, ClusterForm
-import os
-import base64
-import numpy as np
 from scipy import ndimage
 from scipy.signal import find_peaks
-import pandas as pd
-import matplotlib.pyplot as plt
 from io import BytesIO
 from multiprocessing import Pool, cpu_count
-import cv2
 from sklearn.cluster import KMeans, DBSCAN
 from skimage.color import rgb2hsv, hsv2rgb
 from skimage.io import imread
+from skimage.feature import hog
+from skimage import transform
 from mtcnn.mtcnn import MTCNN
 from torchvision.io.image import read_image
 from torchvision.transforms.functional import to_pil_image
-from sklearn.svm import SVC
+from sklearn.svm import SVC, LinearSVC
+from sklearn.model_selection import GridSearchCV
+from sklearn.datasets import fetch_lfw_people
+from torchvision import models
+from torchvision.utils import draw_segmentation_masks, draw_keypoints
+from tensorflow.keras.datasets import cifar10
+from itertools import chain
+from joblib import dump, load
 import face_recognition
 import PIL
 import matplotlib
 import mediapipe as mp
-from torchvision import models
-from torchvision.utils import draw_segmentation_masks, draw_keypoints
+import dlib
 import torch
+import os
+import base64
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import cv2
 
 
 matplotlib.use("Agg")
 
 DEFAULT_IMAGE_PATH = static("images/default.png")
+DEFAULT_MODEL_PATH = static("model/svm_segmentation.joblib")
+
+
+class SVMSegmentationHOG:
+    def __init__(self, image_path):
+        self.test_image_path = image_path
+        
+    def train_model(self, desired_shape):
+        (cifar_train_images, cifar_train_labels), (_, _) = cifar10.load_data()
+        cifar_train_images_gray = np.dot(cifar_train_images[...,:3], [0.2989, 0.5870, 0.1140])
+        cifar_train_images_gray = (cifar_train_images_gray / 255.0) * 255
+        
+        num_negative_samples = 24
+        negative_images_indices = np.random.choice(cifar_train_images_gray.shape[0], num_negative_samples, replace=False)
+        negative_patches = cifar_train_images_gray[negative_images_indices]
+        
+        faces = fetch_lfw_people(min_faces_per_person=60)
+        positive_patches = faces.images
+        print(f"Positive patches shape: {positive_patches.shape}")
+        print(f"Negative patches shape: {negative_patches.shape}")
+    
+        positive_patches_resized = np.array([transform.resize(image, desired_shape) for image in positive_patches])
+        negative_patches_resized = np.array([transform.resize(image, desired_shape) for image in negative_patches])
+        
+        hog_features = [hog(im, pixels_per_cell=(8, 8),
+                                    cells_per_block=(2, 2),
+                                    block_norm='L2-Hys',
+                                    transform_sqrt=True) for im in chain(positive_patches_resized, negative_patches_resized)]
+        
+        X_train = np.array(hog_features)
+        y_train = np.zeros(X_train.shape[0])
+        y_train[:positive_patches_resized.shape[0]] = 1  
+        grid = GridSearchCV(LinearSVC(), {
+            'C': [0.01, 0.1, 1, 10, 100],
+            'penalty': ['l1', 'l2'],
+            'loss': ['hinge', 'squared_hinge'],
+            })
+        grid.fit(X_train, y_train)
+        print(grid.best_score_)
+        print(grid.best_params_)
+        model = grid.best_estimator_
+        model.fit(X_train, y_train)
+        
+        model_path = "myapp" + DEFAULT_MODEL_PATH
+        dump(model, model_path)
+    
+        return model
+    
+    def preprocess_test_image(self, image_path, desired_shape):
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        original_width, original_height = image.shape[1], image.shape[0]
+        desired_width, desired_height = desired_shape
+    
+        scale_factor_width = original_width / desired_width
+        scale_factor_height = original_height / desired_height
+        
+        if image.shape != desired_shape:
+            image = cv2.resize(image, desired_shape)
+        
+        return image, scale_factor_width, scale_factor_height
+    
+    def create_hog_patches(self, image, window_size, step_size):
+        patches = []
+        print(f"Image dimensions: {image.shape}")
+        if image.shape[0] < window_size[1] or image.shape[1] < window_size[0]:
+            print("Error: Image is smaller than the window size.")
+            return patches
+        
+        for y in range(0, image.shape[0] - window_size[1] + 1, step_size):
+            for x in range(0, image.shape[1] - window_size[0] + 1, step_size):
+                patch = image[y:y + window_size[1], x:x + window_size[0]]
+                patch_hog = hog(patch, pixels_per_cell=(8, 8), cells_per_block=(2, 2), block_norm='L2-Hys', transform_sqrt=True)
+                patches.append((patch_hog, x, y))
+                print(f"Patch created at {(x, y)}")
+        return patches
+    
+    def predict_and_draw_boundaries(self, image, original_image, patches, model, window_size, scale_factor_width, scale_factor_height):
+        for patch_hog, x, y in patches:
+            prediction = model.predict([patch_hog])
+            
+            if prediction == 1:
+                original_x = int(x * scale_factor_width)
+                original_y = int(y * scale_factor_height)
+                original_w = int(window_size[0] * scale_factor_width)
+                original_h = int(window_size[1] * scale_factor_height)
+    
+                cv2.rectangle(original_image, (original_x, original_y), 
+                              (original_x + original_w, original_y + original_h), 
+                              (0, 255, 0), 20)
+    
+        return original_image
+    
+    def test_model(self):
+        desired_shape = (62, 47)
+
+        model_filename = "myapp" + DEFAULT_MODEL_PATH
+        if os.path.exists(model_filename):
+            print("Model Exists")
+            model_loaded = load(model_filename)
+        else:
+            print("Training Model")
+            model_loaded = self.train_model(desired_shape)
+    
+        test_image, scale_factor_width, scale_factor_height = self.preprocess_test_image(self.test_image_path, desired_shape)
+        
+        window_size = (62, 47)
+        step_size = 8
+        patches = self.create_hog_patches(test_image, window_size, step_size)
+        
+        original_image = image = cv2.imread(self.test_image_path, cv2.IMREAD_COLOR)
+        
+        result_image = self.predict_and_draw_boundaries(test_image, original_image, patches, model_loaded, window_size, scale_factor_width, scale_factor_height)
+        
+        return result_image
+    
+
+def hogDlibDetector(image_path):
+    image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    hogFaceDetector = dlib.get_frontal_face_detector()
+    faces = hogFaceDetector(gray, 1)
+
+    for (i, rect) in enumerate(faces):
+        x = rect.left()
+        y = rect.top()
+        w = rect.right() - x
+        h = rect.bottom() - y
+        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    return image
 
 
 def rcnnImageKeyPoints(image_path):
@@ -819,6 +959,7 @@ def myapp(request):
         grayImage = grayscaleImage(image_path)
         sharpImage = sharpenImage(grayImage)
         sobelImage, theta = sobelEdgeDetection(grayImage)
+        svmObject = SVMSegmentationHOG(image_path)
 
         tasks = [
             (gaussianBlurImage, (grayImage,)),
@@ -841,6 +982,8 @@ def myapp(request):
             ),
             (dbscanSegmentation, (image_path,)),
             (svmSegmentation, (image_path,)),
+            (svmObject.test_model, ()),
+            (hogDlibDetector, (image_path,)),
             (mtcnnFaceDetection, (image_path,)),
             (haarCascadeFaceDetection, (image_path,)),
             (fcnImageSegmentation, (image_path,)),
@@ -872,6 +1015,8 @@ def myapp(request):
             kmeansImage,
             dbscanImage,
             svmImage,
+            svmHogImage,
+            hogDlibImage,
             mtcnnImage,
             haarCascadeImage,
             fcnSegmentationImage,
@@ -904,6 +1049,8 @@ def myapp(request):
         clusterGraph = encodeImage(defaultImage)
         dbscanImage = defaultImage
         svmImage = defaultImage
+        svmHogImage = defaultImage
+        hogDlibImage = defaultImage
         mtcnnImage = defaultImage
         haarCascadeImage = defaultImage
         fcnSegmentationImage = defaultImage
@@ -940,6 +1087,8 @@ def myapp(request):
             "kmeans_segmentation": encodeImage(kmeansImage),
             "dbscan_image": encodeImage(dbscanImage),
             "svm_image": encodeImage(svmImage),
+            "svm_hog_image": encodeImage(svmHogImage),
+            "dlib_hog_image": encodeImage(hogDlibImage),
             "mtcnn_image": encodeImage(mtcnnImage),
             "haar_cascade_image": encodeImage(haarCascadeImage),
             "fcn_segmentation": encodeImage(fcnSegmentationImage),
