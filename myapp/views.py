@@ -169,7 +169,6 @@ def hogDlibDetector(image_path):
         h = rect.bottom() - y
         cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     return image
 
 
